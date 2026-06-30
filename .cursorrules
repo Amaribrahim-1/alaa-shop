@@ -1,0 +1,190 @@
+# Alaa Store (alaa-shop) — Project Rules
+# Source of truth: docs/architecture.md + docs/database_schema.sql
+# Status: LOCKED for MVP — do not deviate without explicit user approval.
+
+---
+
+## 1. Project Identity
+
+- **Name:** Alaa Store (Arabic: متجر آلاء)
+- **Purpose:** Production e-commerce for an informal WhatsApp-based business with rotating inventory.
+- **Core principle:** Customers complete the full shopping flow in the web app. **Admin dashboard is the operational core** — especially `/admin/orders`. WhatsApp links/buttons after checkout are optional cosmetic niceties only, never a substitute for the dashboard.
+- **Locale:** Arabic-first UI. Root layout MUST keep `lang="ar"` and `dir="rtl"`. Use Tailwind **logical** utilities (`ms-*`, `me-*`, `ps-*`, `pe-*`, `text-start`, `text-end`) — avoid hardcoded `ml-*`/`mr-*`/`text-left`/`text-right`.
+
+---
+
+## 2. Locked Tech Stack (DO NOT substitute)
+
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16+ App Router |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS v4 |
+| Client state | Zustand (`persist` for cart only) |
+| Forms | React Hook Form + Zod (`@hookform/resolvers`) |
+| Backend | Supabase (PostgreSQL, Auth, Storage) — Ireland region |
+| Hosting | Vercel |
+
+**Forbidden in MVP:** Redux, Prisma, tRPC, separate REST API layer, dedicated `categories` table, per-category dynamic product fields, customer-submitted reviews, wishlist, alternative auth providers.
+
+---
+
+## 3. Folder Structure (enforce on every new file)
+
+```
+src/
+├── app/                          # App Router pages only — thin route files
+│   ├── layout.tsx                # Root: lang="ar", dir="rtl", Cairo font
+│   ├── page.tsx                  # /
+│   ├── products/
+│   │   ├── page.tsx
+│   │   └── [slug]/page.tsx
+│   ├── cart/page.tsx
+│   ├── checkout/page.tsx
+│   ├── order-confirmation/[orderId]/page.tsx
+│   ├── login/page.tsx
+│   ├── signup/page.tsx
+│   ├── account/page.tsx
+│   ├── reviews/page.tsx          # lower priority
+│   ├── about/page.tsx            # lower priority
+│   └── admin/
+│       ├── layout.tsx            # Admin shell
+│       ├── page.tsx              # Dashboard metrics
+│       ├── login/page.tsx
+│       ├── products/page.tsx
+│       ├── orders/page.tsx       # HIGHEST admin priority
+│       └── reviews/page.tsx
+├── actions/                      # Server Actions only (mutations + validated reads)
+├── components/
+│   ├── ui/                       # Reusable primitives (buttons, inputs, modals)
+│   ├── layout/                   # Header, Footer, Nav
+│   ├── products/                 # Product cards, gallery, filters
+│   ├── cart/                     # Cart line items, summary
+│   └── admin/                    # Admin tables, forms, status badges
+├── lib/
+│   └── supabase/                 # client.ts, server.ts, middleware helpers
+├── schemas/                      # Zod schemas (checkout, product forms, etc.)
+├── stores/                       # Zustand stores (useCartStore, optional useAuthStore)
+├── types/                        # Shared TypeScript types (DB row shapes, cart items)
+└── middleware.ts                 # Admin route protection (session + profiles.role)
+docs/
+├── architecture.md               # READ before architectural decisions
+└── database_schema.sql           # READ before DB/RLS changes
+```
+
+**Placement rules:**
+- Pages in `src/app/` — fetch data, compose components; keep business logic out of page files when possible.
+- All mutations via **Server Actions** in `src/actions/`, never client-side Supabase writes for orders/products.
+- Supabase clients only in `src/lib/supabase/` — never instantiate ad-hoc clients in components.
+- Zod schemas in `src/schemas/` — shared between forms and Server Actions.
+- Zustand stores in `src/stores/` — cart persistence key: e.g. `alaa-cart-storage`.
+
+---
+
+## 4. Database & Security (non-negotiable)
+
+Schema is **deployed** — see `docs/database_schema.sql`. Tables: `profiles`, `products`, `orders`, `order_items`, `reviews`.
+
+**Critical data rules:**
+1. **Never trust client cart prices or totals.** Server Action MUST re-fetch live `products.price` and `stock_quantity` before creating orders.
+2. **Snapshot on order:** Write `product_title_snapshot` and `price_at_purchase` into `order_items`.
+3. **Decrement stock** server-side after successful order insert.
+4. **Guest checkout allowed:** `orders.user_id` may be `null`.
+5. **Product routing:** Use `products.slug` for `/products/[slug]` — slugs must be unique.
+6. **Soft delete products:** Toggle `is_active = false`; do not hard-delete products with order history.
+7. **Reviews:** Admin-entered only, linked to `product_id`. No customer review submission in MVP.
+8. **RLS is enforced in Supabase** — use the correct Supabase client (anon vs service role) and never bypass RLS from the browser for admin operations.
+
+**Admin access:** Middleware on `/admin/*` (except `/admin/login`) checks Supabase session AND `profiles.role === 'admin'`.
+
+---
+
+## 5. State Management
+
+### `useCartStore` (required)
+- Items: `{ productId, slug, title, price, quantity, image? }`
+- Actions: add, remove, updateQuantity, clearCart, getTotal
+- Persist via Zustand `persist` → `localStorage`
+- Clear cart only after successful Server Action order creation
+
+### `useAuthStore` (optional)
+- Cache profile fields (`full_name`, `phone`, `address`) for instant UI; sync from Supabase session
+
+---
+
+## 6. Build Priority Order (follow strictly)
+
+1. **Admin Dashboard** — Products CRUD → **Orders management** → Reviews tool
+2. **Customer Frontend** — Homepage → Products listing → Product detail → Cart → Checkout → Confirmation
+3. **Auth** — wire Email/Password + Google OAuth when routes need it
+4. **Lower priority** — `/reviews`, `/about`, optional post-checkout WhatsApp button
+
+Do not start customer-facing pages before admin orders flow is functional.
+
+---
+
+## 7. Coding Standards
+
+- **TypeScript:** Explicit types for props, Server Action inputs/outputs, and DB rows. No `any`.
+- **Components:** Functional only. Server Components by default; `"use client"` only when needed (interactivity, Zustand, RHF).
+- **Forms:** React Hook Form + Zod resolver. Duplicate validation in Server Actions with the same Zod schema.
+- **Errors:** Return structured `{ success, error?, data? }` from Server Actions; show Arabic user-facing messages.
+- **Env vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` for client; service role key server-only, never in client bundles.
+- **Images:** Product images from Supabase Storage URLs stored in `products.images[]`.
+- **Categories:** Free-text `products.category`; filter via DISTINCT query — no categories table.
+- **Order statuses:** `'pending' | 'shipped' | 'completed' | 'cancelled'` only.
+- **Scope:** Minimal diffs. Match existing code style. No over-engineering or premature abstractions.
+- **Comments:** Only for non-obvious business logic.
+
+---
+
+## 8. MVP Exclusions (do not implement unless user explicitly requests)
+
+- Wishlist
+- Customer-submitted reviews or review image uploads
+- Per-category dynamic product attributes / JSONB attributes column
+- Dedicated categories table or category CRUD
+- WhatsApp as primary order notification (dashboard is primary)
+- Hard-deleting products or orders
+- Trusting client-side price, stock, or cart totals at checkout
+
+---
+
+## 9. Git Workflow (MANDATORY after every completed step)
+
+After completing any discrete step, file group, or configuration change:
+
+1. **Stop** — do not begin the next step until the current one is committed.
+2. **State explicitly** whether a commit is required (almost always yes).
+3. **Provide the exact command** using [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
+git add .
+git commit -m "type: concise description in imperative mood"
+```
+
+**Allowed types:** `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `style`, `perf`, `build`, `ci`
+
+**Examples:**
+- `chore: add Supabase client helpers and env template`
+- `feat: implement admin products CRUD with image upload`
+- `feat: add server action for checkout with stock validation`
+- `fix: correct RTL spacing on cart summary`
+
+**Rules:**
+- One logical step → one commit → user confirmation → next step.
+- Never commit `.env` or secrets.
+- Never amend pushed commits unless user explicitly requests it.
+- Never skip hooks (`--no-verify`) unless user explicitly requests it.
+
+---
+
+## 10. AI Assistant Behavior
+
+Before making architectural or schema decisions, read `docs/architecture.md` and `docs/database_schema.sql`.
+
+When guiding or implementing:
+- Explain concepts simply (junior-friendly mentor tone).
+- Prefer existing project patterns over new libraries.
+- After each step, output the Git commit instruction before moving on.
+- Ask for user confirmation between major phases (admin → customer → auth → deploy).
