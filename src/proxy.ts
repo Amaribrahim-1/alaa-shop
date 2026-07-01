@@ -16,22 +16,22 @@ export async function proxy(request: NextRequest) {
     const response = NextResponse.next();
     const supabase = createMiddlewareClient(request, response);
 
-    // Refresh the session cookie so logged-in users aren't silently logged out.
+    // Refresh the session cookie and get the authenticated user securely.
     const {
-        data: { session },
-    } = await supabase.auth.getSession();
+        data: { user },
+    } = await supabase.auth.getUser();
 
-    // No session → redirect to admin login.
-    if (!session) {
+    // No user → redirect to admin login.
+    if (!user) {
         const loginUrl = new URL('/admin/login', request.url);
         return NextResponse.redirect(loginUrl);
     }
 
-    // Session exists — verify the role is 'admin'.
+    // User exists — verify the role is 'admin'.
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
     if (profile?.role !== 'admin') {
