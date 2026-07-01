@@ -1,9 +1,223 @@
+/* src/app/globals.css
+   Design System — Alaa Store
+   Tailwind v4: tokens go in @theme, custom utilities in @layer utilities */
+
 @import "tailwindcss";
 
+/* ─── 1. THEME TOKENS ─────────────────────────────────────────────────────── */
 @theme {
+  /* Font */
   --font-sans: var(--font-cairo), "Noto Sans Arabic", sans-serif;
+
+  /* Brand palette — warm amber + deep navy */
+  --color-brand-50: #fffbeb;
+  --color-brand-100: #fef3c7;
+  --color-brand-200: #fde68a;
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-brand-500: #f59e0b;
+  /* primary action */
+  --color-brand-600: #d97706;
+  --color-brand-700: #b45309;
+  --color-brand-800: #92400e;
+  --color-brand-900: #78350f;
+
+  /* Surface / neutral */
+  --color-surface-0: #ffffff;
+  --color-surface-50: #f9fafb;
+  --color-surface-100: #f3f4f6;
+  --color-surface-200: #e5e7eb;
+  --color-surface-800: #1f2937;
+  --color-surface-900: #111827;
+  --color-surface-950: #030712;
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  /* Status badge colours (used in Orders table) */
+  --color-status-pending: #d97706;
+  --color-status-shipped: #2563eb;
+  --color-status-completed: #16a34a;
+  --color-status-cancelled: #6b7280;
+
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+
+  /* Shadow */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-dropdown: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
+/* ─── 2. BASE STYLES ─────────────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Accessible focus ring — brand-coloured, visible for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* Selection highlight */
+::selection {
+  background-color: var(--color-brand-200);
+  color: var(--color-surface-900);
+}
+
+/* ─── 3. CUSTOM UTILITIES ────────────────────────────────────────────────── */
+@layer utilities {
+
+  /* Reusable button — primary CTA style */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background-color: var(--color-brand-500);
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 100ms ease;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-brand-600);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:disabled {
+    background-color: var(--color-surface-200);
+    color: var(--color-status-cancelled);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Ghost / secondary button */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    background-color: transparent;
+    color: var(--color-surface-800);
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-surface-200);
+    cursor: pointer;
+    transition: background-color 150ms ease;
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-surface-100);
+  }
+
+  /* Card container */
+  .card {
+    background-color: var(--color-surface-0);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-surface-200);
+    padding: 1.5rem;
+  }
+
+  /* Admin data table */
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .admin-table th {
+    padding: 0.75rem 1rem;
+    text-align: start;
+    font-weight: 600;
+    color: var(--color-surface-800);
+    background-color: var(--color-surface-50);
+    border-bottom: 1px solid var(--color-surface-200);
+  }
+
+  .admin-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-surface-100);
+    color: var(--color-surface-800);
+    vertical-align: middle;
+  }
+
+  .admin-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .admin-table tr:hover td {
+    background-color: var(--color-surface-50);
+  }
+
+  /* Status badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--radius-2xl);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .badge-pending {
+    background-color: #fef3c7;
+    color: var(--color-status-pending);
+  }
+
+  .badge-shipped {
+    background-color: #dbeafe;
+    color: var(--color-status-shipped);
+  }
+
+  .badge-completed {
+    background-color: #dcfce7;
+    color: var(--color-status-completed);
+  }
+
+  .badge-cancelled {
+    background-color: #f3f4f6;
+    color: var(--color-status-cancelled);
+  }
+
+  /* Form input */
+  .input {
+    width: 100%;
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--color-surface-200);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-0);
+    color: var(--color-surface-900);
+    font-size: 0.875rem;
+    transition: border-color 150ms ease;
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.15);
+  }
 }
